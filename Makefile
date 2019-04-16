@@ -20,6 +20,8 @@ clean:
 	python3 pythonTools/mbuild.py -c -nc
 	rm ./mabe
 	rm ./MABE/mabe
+	cd MABE; \
+	git checkout buildOptions.txt
 	$(MAKE) cleanSource
 
 .PHONY: copySource
