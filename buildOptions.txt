@@ -1,0 +1,29 @@
+% World
+  - Berry
+  - Xor
+  - Test
+  - Logic16
+  * GraphColor
+
+% Genome
+  - Multi
+  * Circular
+  
+% Brain
+  - Markov
+  - CGP
+  - LSTM
+  - ConstantValues
+  - Human
+  - Wire
+  * ANN
+	
+% Optimizer
+  * Simple
+  - Islands
+  - Lexicase
+
+% Archivist
+  + Default
+  + SSwD
+  * LODwAP
