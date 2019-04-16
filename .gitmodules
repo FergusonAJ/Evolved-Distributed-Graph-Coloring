@@ -1,0 +1,3 @@
+[submodule "MABE"]
+	path = MABE
+	url = git@github.com:Hintzelab/MABE.git
