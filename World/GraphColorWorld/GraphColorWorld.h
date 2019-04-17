@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <thread>
 #include <vector>
+#include <algorithm>
 
 class GraphColorWorld : public AbstractWorld {
 

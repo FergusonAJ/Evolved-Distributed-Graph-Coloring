@@ -15,6 +15,12 @@
 // by 'mode'.
 
 #include "GraphColorWorld.h"
+#include "../../Utilities/Random.h"
+
+// Used to shuffle a vector using the same random seed as MABE
+int randNum(int i){
+    return Random::getInt(0, i-1);
+}
 
 std::shared_ptr<ParameterLink<int>> GraphColorWorld::modePL =
     Parameters::register_parameter(
@@ -69,6 +75,53 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr<Organism> org, int analyze,
                              int visualize, int debug) {
   auto brain = org->brains[brainNamePL->get(PT)];
   for (int r = 0; r < evaluationsPerGenerationPL->get(PT); r++) {
+    // Create and fill a vector of brains (one brain per graph node)
+    std::vector<std::shared_ptr<AbstractBrain>> brainVec;
+    brainVec.resize(G.nodeCount);
+    for(size_t b = 0; b < G.nodeCount; ++b){
+        brainVec[b] = brain->makeCopy();
+    }
+    
+    // Reset, set input for, and run each brain
+    for(size_t b = 0; b < G.nodeCount; ++b){
+        brainVec[b]->resetBrain();
+        brainVec[b]->setInput(0, 1); // give the brain a constant 1 (for wire brain)
+        brainVec[b]->update();
+    }      
+    // Generate random ordering  
+    std::vector<size_t> idxVec;
+    idxVec.resize(G.nodeCount);
+    for(size_t i = 0; i < G.nodeCount; i++){
+        idxVec[i] = i;
+    }
+    double score = 0.0;
+    // Randomly shuffle the indices using the same random seed as MABE proper
+    std::random_shuffle(idxVec.begin(), idxVec.end(), randNum);
+    // Handle each brain's output in a random order
+    for(size_t idx : idxVec){ 
+        for (int i = 0; i < brainVec[idx]->nrOutputValues; i++) {
+          if (modePL->get(PT) == 0)
+            score += Bit(brainVec[idx]->readOutput(i));
+          else
+            score += brainVec[idx]->readOutput(i);
+        }
+    }
+    if (score < 0.0)
+      score = 0.0;
+    org->dataMap.append("score", score);
+    if (visualize)
+      std::cout << "organism with ID " << org->ID << " scored " << score
+                << std::endl;
+  }
+}
+
+/*
+    REFERENCE
+
+void GraphColorWorld::evaluateSolo(std::shared_ptr<Organism> org, int analyze,
+                             int visualize, int debug) {
+  auto brain = org->brains[brainNamePL->get(PT)];
+  for (int r = 0; r < evaluationsPerGenerationPL->get(PT); r++) {
     brain->resetBrain();
     brain->setInput(0, 1); // give the brain a constant 1 (for wire brain)
     brain->update();
@@ -87,4 +140,4 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr<Organism> org, int analyze,
                 << std::endl;
   }
 }
-
+*/
