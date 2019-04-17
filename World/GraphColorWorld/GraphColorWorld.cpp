@@ -99,10 +99,11 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
             }
 
         } //agent lifetime
-    } // evals per generation
 
-    //end of life cleanup
-    org->dataMap.append("score", score);
-    if (visualize)
-        std::cout << "organism with ID " << org->ID << " scored " << score << std::endl;
+        //end of life cleanup
+        org->dataMap.append("score", score);
+        if (visualize)
+            std::cout << "organism with ID " << org->ID << " scored " << score << std::endl;
+        
+    } // evals per generation
 }
