@@ -18,23 +18,28 @@
 
 std::shared_ptr<ParameterLink<int>> GraphColorWorld::modePL =
     Parameters::register_parameter(
-        "WORLD_TEST-mode", 0, "0 = bit outputs before adding, 1 = add outputs");
+        "WORLD_GRAPH_COLOR-mode", 0, "0 = bit outputs before adding, 1 = add outputs");
 std::shared_ptr<ParameterLink<int>> GraphColorWorld::numberOfOutputsPL =
-    Parameters::register_parameter("WORLD_TEST-numberOfOutputs", 10,
+    Parameters::register_parameter("WORLD_GRAPH_COLOR-numberOfOutputs", 10,
                                    "number of outputs in this world");
 std::shared_ptr<ParameterLink<int>> GraphColorWorld::evaluationsPerGenerationPL =
-    Parameters::register_parameter("WORLD_TEST-evaluationsPerGeneration", 1,
+    Parameters::register_parameter("WORLD_GRAPH_COLOR-evaluationsPerGeneration", 1,
                                    "Number of times to test each Genome per "
                                    "generation (useful with non-deterministic "
                                    "brains)");
 std::shared_ptr<ParameterLink<std::string>> GraphColorWorld::groupNamePL =
-    Parameters::register_parameter("WORLD_TEST_NAMES-groupNameSpace",
+    Parameters::register_parameter("WORLD_GRAPH_COLOR_NAMES-groupNameSpace",
                                    (std::string) "root::",
                                    "namespace of group to be evaluated");
 std::shared_ptr<ParameterLink<std::string>> GraphColorWorld::brainNamePL =
     Parameters::register_parameter(
-        "WORLD_TEST_NAMES-brainNameSpace", (std::string) "root::",
+        "WORLD_GRAPH_COLOR_NAMES-brainNameSpace", (std::string) "root::",
         "namespace for parameters used to define brain");
+
+std::shared_ptr<ParameterLink<std::string>> GraphColorWorld::graphFNamePL =
+    Parameters::register_parameter(
+        "WORLD_GRAPH_COLOR-graphFileName", (std::string) "NONE",
+        "The filename of the graph we will test on. NONE for random");
 
 GraphColorWorld::GraphColorWorld(std::shared_ptr<ParametersTable> PT_)
     : AbstractWorld(PT_) {
@@ -45,6 +50,19 @@ GraphColorWorld::GraphColorWorld(std::shared_ptr<ParametersTable> PT_)
   popFileColumns.push_back("score_VAR"); // specifies to also record the
                                          // variance (performed automatically
                                          // because _VAR)
+  std::string graphFilename = graphFNamePL->get(PT);
+  if(graphFilename == "NONE"){
+
+    //TODO: Create a random graph here, instead of defaulting!
+    std::cout << "No graph file specified! Defaulting! (Should we make this random?)" << std::endl;
+    G.loadFromFile("./Graphs/default.txt");
+  }
+  else{
+    std::cout << "Using graph: " << graphFilename << "!" << std::endl;
+    G.loadFromFile(graphFilename);
+  }
+  std::cout << "Nodes: " << G.nodeCount << std::endl;
+  std::cout << "Edges: " << G.edgeCount << std::endl;
 }
 
 void GraphColorWorld::evaluateSolo(std::shared_ptr<Organism> org, int analyze,
