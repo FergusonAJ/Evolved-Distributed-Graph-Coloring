@@ -1,3 +1,5 @@
+cores := 1
+
 dirs := World                        #The directories we will copy into MABE prior to compiling
 
 strippedDir = $(notdir $(dir2))
@@ -11,7 +13,7 @@ rmDir = $(foreach dir2, $(wildcard $(dir)/*), $(rmHelper))
 all: copySource
 	cp ./buildOptions.txt ./MABE/
 	cd MABE; \
-	python3 pythonTools/mbuild.py -p 8; \
+	python3 pythonTools/mbuild.py -p $(cores); \
 	cp ./mabe ../mabe
 
 .PHONY: clean
