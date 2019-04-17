@@ -11,6 +11,7 @@
 #pragma once
 
 #include "../AbstractWorld.h"
+#include "./Graph.h"
 
 #include <cstdlib>
 #include <thread>
@@ -29,8 +30,13 @@ public:
 
   static std::shared_ptr<ParameterLink<std::string>> groupNamePL;
   static std::shared_ptr<ParameterLink<std::string>> brainNamePL;
+
   // string groupName;
   // string brainName;
+
+  static std::shared_ptr<ParameterLink<std::string>> graphFNamePL;
+  
+  Graph G;
 
   GraphColorWorld(std::shared_ptr<ParametersTable> PT_ = nullptr);
   virtual ~GraphColorWorld() = default;
