@@ -20,6 +20,14 @@ std::shared_ptr <ParameterLink<std::string>> GraphColorWorld::brainNamePL = Para
 
 std::shared_ptr <ParameterLink<std::string>> GraphColorWorld::graphFNamePL = Parameters::register_parameter("WORLD_GRAPH_COLOR-graphFileName", (std::string) "NONE", "The filename of the graph we will test on. NONE for random");
 
+std::shared_ptr <ParameterLink<int>> GraphColorWorld::useNewMessageBit = Parameters::register_parameter("WORLD_GRAPH_COLOR-useNewMessageBit",  1, "Do we include a bit in the input telling a brain it has a new message? (1 for yes, 0 for no)");
+std::shared_ptr <ParameterLink<int>> GraphColorWorld::useSendMessageBit = Parameters::register_parameter("WORLD_GRAPH_COLOR-useSendMessageBit",  1, "Do we include an output bit indicating a message should be sent? (1 for yes, 0 for no)");
+std::shared_ptr <ParameterLink<int>> GraphColorWorld::useSendMessageVetoBit = Parameters::register_parameter("WORLD_GRAPH_COLOR-useSendMessageVetoBit",  1, "Do we include an output bit that allows vetoing of message sending? (1 for yes, 0 for no) (Note: if useSendMessageBit is 0, this will be set to 0 internally.");
+std::shared_ptr <ParameterLink<int>> GraphColorWorld::useGetMessageBit = Parameters::register_parameter("WORLD_GRAPH_COLOR-useGetMessageBit",  1, "Do we include an output bit that brains activate to receive a message from their queue? (1 for yes, 0 for no)");
+std::shared_ptr <ParameterLink<int>> GraphColorWorld::useGetMessageVetoBit = Parameters::register_parameter("WORLD_GRAPH_COLOR-useGetMessageVetoBit",  1, "Do we include a bit taht allows vetoing the action of getting a message from the queue?(1 for yes, 0 for no) (Note: if useGetMessage but is 0, this will be set to 0 internally.");
+
+std::shared_ptr <ParameterLink<int>> GraphColorWorld::maximumColors = Parameters::register_parameter("WORLD_GRAPH_COLOR-maximumColors",  -1, "Maximum number of colors to be considered a valid graph coloring. (-1 to match the number of nodes)");
+
 GraphColorWorld::GraphColorWorld(std::shared_ptr <ParametersTable> PT_) : AbstractWorld(PT_) {
     // columns to be added to ave file (configure data collection)
     popFileColumns.clear();
@@ -45,6 +53,15 @@ GraphColorWorld::GraphColorWorld(std::shared_ptr <ParametersTable> PT_) : Abstra
     //read in other params
     agentLifetime = agentLifetimePL->get(PT);
     evaluationsPerGeneration = evaluationsPerGenerationPL->get(PT);
+    useNewMsgBit = useNewMessageBit->get(PT) > 0;
+    useSendMsgBit = useSendMessageBit->get(PT) > 0;
+    useSendMsgVetoBit = (useSendMessageBit->get(PT) > 0) && (useSendMessageVetoBit->get(PT));
+    useGetMsgBit = useGetMessageBit->get(PT) > 0;
+    useGetMsgVetoBit = (useGetMessageBit->get(PT) > 0) && (useGetMessageVetoBit > 0);
+    maxColors = maximumColors->get(PT);
+    if(maxColors <= 0)
+        maxColors = G.nodeCount;
+    std::cout << "Maximum colors: " << maxColors << std::endl;
 }
 
 void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, int visualize, int debug) {
@@ -93,9 +110,12 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
             std::random_shuffle(nodeOrder.begin(), nodeOrder.end());
             for (auto brainID:nodeOrder) {
                 //TODO put real code in here
+                std::cout << brainID << ": ";
                 for (int i = 0; i < numBrainOutputs; i++) {
                     auto outputBit = Bit(cloneBrains[brainID]->readOutput(i));
+                    std::cout << outputBit;
                 }
+                std::cout << std::endl;
             }
 
         } //agent lifetime

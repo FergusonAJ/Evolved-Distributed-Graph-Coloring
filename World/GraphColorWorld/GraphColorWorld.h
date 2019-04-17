@@ -16,6 +16,8 @@
 #include <cstdlib>
 #include <thread>
 #include <vector>
+#include <cmath>
+
 
 class GraphColorWorld : public AbstractWorld {
 
@@ -23,19 +25,23 @@ public:
     static std::shared_ptr <ParameterLink<int>> modePL;
     static std::shared_ptr <ParameterLink<int>> evaluationsPerGenerationPL;
     static std::shared_ptr <ParameterLink<int>> agentLifetimePL;
+    static std::shared_ptr <ParameterLink<std::string>> graphFNamePL;
+    static std::shared_ptr <ParameterLink<int>> useNewMessageBit;
+    static std::shared_ptr <ParameterLink<int>> useSendMessageBit;
+    static std::shared_ptr <ParameterLink<int>> useSendMessageVetoBit;
+    static std::shared_ptr <ParameterLink<int>> useGetMessageBit;
+    static std::shared_ptr <ParameterLink<int>> useGetMessageVetoBit;
+    static std::shared_ptr <ParameterLink<int>> maximumColors;
 
-    // int mode;
-    // int numberOfOutputs;
+    bool useNewMsgBit, useSendMsgBit, useSendMsgVetoBit, useGetMsgBit, useGetMsgVetoBit;
+    int maxColors = -1;
+
     int evaluationsPerGeneration;
     int agentLifetime;
 
     static std::shared_ptr <ParameterLink<std::string>> groupNamePL;
     static std::shared_ptr <ParameterLink<std::string>> brainNamePL;
 
-    // string groupName;
-    // string brainName;
-
-    static std::shared_ptr <ParameterLink<std::string>> graphFNamePL;
 
     Graph G;
 
@@ -53,7 +59,29 @@ public:
     }
 
     virtual std::unordered_map <std::string, std::unordered_set<std::string>> requiredGroups() override {
-        return {{groupNamePL->get(PT), {"B:" + brainNamePL->get(PT) + ",1,1"}}}; //TODO "inputs, outputs"
+        //Calculate the number of input bits required
+        size_t inputSize = 0;
+        if(useNewMsgBit)
+            ++inputSize;
+        inputSize += (size_t)ceil(log2(G.nodeCount)); // To address nodes in binary
+        //TODO: set a maximum size on the number of colors allowed?
+        inputSize += (size_t)ceil(maxColors); // Allow messages to pass a color
+        
+        //Calculate the number of output bits required
+        size_t outputSize = 0;
+        if(useSendMsgBit)
+            ++outputSize;
+        if(useSendMsgVetoBit)
+            ++outputSize;
+        if(useGetMsgBit)
+            ++outputSize;
+        if(useGetMsgVetoBit)
+            ++outputSize;
+        outputSize += (size_t)ceil(log2(G.nodeCount)); // To address nodes in binary
+        outputSize += (size_t)ceil(log2(maxColors)); // For color
+        std::cout << "Input bits: " << inputSize << std::endl;
+        std::cout << "Output bits: " << outputSize << std::endl;
+        return {{groupNamePL->get(PT), {"B:" + brainNamePL->get(PT) + "," + std::to_string(inputSize) + "," + std::to_string(outputSize)}}}; //TODO "inputs, outputs"
         // requires a root group and a brain (in root namespace) and no addtional
         // genome,
         // the brain must have 1 input, and the variable numberOfOutputs outputs
