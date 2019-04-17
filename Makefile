@@ -10,7 +10,9 @@ rmDir = $(foreach dir2, $(wildcard $(dir)/*), $(rmHelper))
 
 
 
-all: copySource
+all:
+	$(MAKE) cleanSource
+	$(MAKE) copySource
 	cp ./buildOptions.txt ./MABE/
 	cd MABE; \
 	python3 pythonTools/mbuild.py -p $(cores); \
@@ -20,11 +22,11 @@ all: copySource
 clean: 
 	cd MABE; \
 	python3 pythonTools/mbuild.py -c -nc
+	$(MAKE) cleanSource
 	rm ./mabe
 	rm ./MABE/mabe
 	cd MABE; \
 	git checkout buildOptions.txt
-	$(MAKE) cleanSource
 
 .PHONY: copySource
 copySource:
