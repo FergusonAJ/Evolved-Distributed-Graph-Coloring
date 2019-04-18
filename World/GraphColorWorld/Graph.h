@@ -51,4 +51,13 @@ public:
         } 
         fp.close(); 
     }
+    
+    bool checkNeighbors(size_t a, size_t b){
+        if(adjVec[a].find(b) != adjVec[a].end())
+            return true;
+        // Just in case we switch to directed graphs
+        if(adjVec[b].find(a) != adjVec[b].end())
+            return true;
+        return false;
+    }
 };

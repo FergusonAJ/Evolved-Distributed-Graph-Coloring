@@ -110,12 +110,9 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
             std::random_shuffle(nodeOrder.begin(), nodeOrder.end());
             for (auto brainID:nodeOrder) {
                 //TODO put real code in here
-                std::cout << brainID << ": ";
                 for (int i = 0; i < numBrainOutputs; i++) {
                     auto outputBit = Bit(cloneBrains[brainID]->readOutput(i));
-                    std::cout << outputBit;
                 }
-                std::cout << std::endl;
             }
 
         } //agent lifetime
@@ -127,3 +124,46 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
         
     } // evals per generation
 }
+
+// Quick and dirty psuedo-code behind setting inputs and reading outputs
+
+// Read outputs
+// (I'm assuming if we don't have a send bit we always send and
+//  if we don't have a get message bit then we always try to get)
+
+//  if(!useSendMessageBit || readOutput(SEND_BIT)){
+//      if(!useSendMessageVetoBit || !readOutput(SEND_VETO_BIT){
+//          target = readOutput(first log2(N) bits) as an int
+//          message = readOutput(next log2(K) bits) as an int
+//          if(G.checkNeighbors(this id, target))
+//              queueVec[target].push_back({id = this id, content = message});  // Message struct?
+//      }
+//  }
+//  deliverMessage[this id] = false;
+//  if(!useGetMessageBit || readOutput(GET_BIT)){
+//      if(!useGetMessageVetoBit || !readOutput(GET_VETO_BIT)){
+//          deliverMessage[this id] = true;
+//      }
+//  }
+
+
+// Set inputs
+
+//  brain.resetInputs();
+//  hasMsg = !queueVec[this id].empty();
+//  if(useNewMessageBit)
+//      brain.setInput(NEW_MSG_BIT, hasMsg);    // If queue.size() == 1 and we are delivering, 
+                                                //      should this be set to 0?
+// If we have no messages or didn't request, do we just leave everything else 0?
+//  if(hasMsg && deliverMessage[this id]){
+//      message = queueVec[this id].front();
+//      queueVec[this id].pop();
+//      brain.setInput(first log2(N) bits, message.id);
+//      brain.setInput(next log2(K) bits, message.content);
+//  } 
+
+
+
+
+
+
