@@ -10,6 +10,11 @@
 
 #include "GraphColorWorld.h"
 
+// Used to shuffle a vector using the same random seed as MABE
+int randInt(int i){
+    return Random::getInt(0, i-1);
+}
+
 std::shared_ptr <ParameterLink<int>> GraphColorWorld::modePL = Parameters::register_parameter("WORLD_GRAPH_COLOR-mode", 0, "0 = bit outputs before adding, 1 = add outputs");
 std::shared_ptr <ParameterLink<int>> GraphColorWorld::evaluationsPerGenerationPL = Parameters::register_parameter("WORLD_GRAPH_COLOR-evaluationsPerGeneration", 1, "Number of times to test each Genome per "
                                                                                                                                                                    "generation (useful with non-deterministic "
@@ -107,7 +112,7 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
             }
 
             //update the world according to each agent's chosen action (visit each node in an unbiased random order)
-            std::random_shuffle(nodeOrder.begin(), nodeOrder.end());
+            std::random_shuffle(nodeOrder.begin(), nodeOrder.end(), randInt);
             for (auto brainID:nodeOrder) {
                 //TODO put real code in here
                 for (int i = 0; i < numBrainOutputs; i++) {
@@ -161,9 +166,3 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
 //      brain.setInput(first log2(N) bits, message.id);
 //      brain.setInput(next log2(K) bits, message.content);
 //  } 
-
-
-
-
-
-
