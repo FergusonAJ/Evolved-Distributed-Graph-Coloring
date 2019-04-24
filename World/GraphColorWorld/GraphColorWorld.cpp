@@ -49,6 +49,7 @@ GraphColorWorld::GraphColorWorld(std::shared_ptr <ParametersTable> PT_) : Abstra
     }
     std::cout << "Nodes: " << G.nodeCount << std::endl;
     std::cout << "Edges: " << G.edgeCount << std::endl;
+    addressSize = ceil(log2(G.nodeCount));
 
     //read in other params
     agentLifetime = agentLifetimePL->get(PT);
@@ -61,7 +62,21 @@ GraphColorWorld::GraphColorWorld(std::shared_ptr <ParametersTable> PT_) : Abstra
     maxColors = maximumColors->get(PT);
     if(maxColors <= 0)
         maxColors = G.nodeCount;
+    colorSize = ceil(log2(maxColors));
     std::cout << "Maximum colors: " << maxColors << std::endl;
+    
+    // Set the bit positions based on what all we have configured
+    newMsgBitPos = addressSize + colorSize;
+    size_t curPos = addressSize + colorSize;
+    if(useSendMsgBit)
+        sendMsgBitPos = curPos++;
+    if(useSendMsgVetoBit)
+        sendMsgVetoBitPos = curPos++;
+    if(useGetMsgBit)
+        getMsgBitPos = curPos++;
+    if(useGetMsgVetoBit)
+        getMsgVetoBitPos = curPos++;
+
 }
 
 void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, int visualize, int debug) {
@@ -74,8 +89,10 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
 
     //clone the brain, one for each node
     //ALSO create a list of ints: used to visit each node exactly once in a random order each APL
-    std::vector <std::shared_ptr<AbstractBrain>> cloneBrains(G.nodeCount);
-    std::vector <size_t> nodeOrder(G.nodeCount); //TODO just shuffle the brain vector??
+    std::vector<std::shared_ptr<AbstractBrain>> cloneBrains(G.nodeCount);
+    std::vector<size_t> nodeOrder(G.nodeCount); //TODO just shuffle the brain vector??
+    std::vector<std::queue<NodeMessage>> msgQueues(G.nodeCount);
+    std::vector<uint8_t> deliverMsgVec(G.nodeCount);
     for (size_t i = 0; i < G.nodeCount; i++) {
         cloneBrains[i] = originalBrain->makeCopy();
         nodeOrder[i] = i;
@@ -93,11 +110,36 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
 
         //lifetime loop (action-perception loop)
         for (size_t t = 0; t < agentLifetime; t++) {
+            
             // give agents their inputs
-            for (auto brain:cloneBrains) {
-                //TODO put real code in here
-                for (int i = 0; i < numBrainInputs; i++) {
-                    brain->setInput(i, 1);
+            for (auto brainID:nodeOrder) {
+                bool hasMsg = msgQueues[brainID].size() > 0;
+                if(!hasMsg){ // No message? Give them all zeroes
+                    for (int i = 0; i < numBrainInputs; i++) {
+                        cloneBrains[brainID]->setInput(i, 0);
+                    }
+                }
+                else if(hasMsg && deliverMsgVec[brainID]){ // Deliver the next message
+                    NodeMessage msg = msgQueues[brainID].front();
+                    msgQueues[brainID].pop();
+                    for(size_t i = 0; i < addressSize; ++i){ // Set sender's address
+                        cloneBrains[brainID]->setInput(i, msg.senderAddr[i]);
+                    }
+                    for(size_t i = 0; i < colorSize; ++i){ // Set msg. contents (color)
+                        cloneBrains[brainID]->setInput(i + addressSize, msg.contents[i]);
+                    }
+                    //TODO: Verify this is a "you still have a msg" bit and not a "we delivered" bit
+                    if(useNewMsgBit){ //Set "You've got mail!" bit if we have more messages
+                        cloneBrains[brainID]->setInput(newMsgBitPos, 
+                            (double)(msgQueues[brainID].size() > 0));
+                    }
+                }
+                else{ // Message exists but was not requested
+                    for (int i = 0; i < numBrainInputs; i++) {
+                        cloneBrains[brainID]->setInput(i, 0);
+                    }
+                    if(useNewMsgBit)
+                        cloneBrains[brainID]->setInput(newMsgBitPos, 1);
                 }
             }
 
@@ -109,16 +151,47 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
             //update the world according to each agent's chosen action (visit each node in an unbiased random order)
             std::random_shuffle(nodeOrder.begin(), nodeOrder.end());
             for (auto brainID:nodeOrder) {
-                //TODO put real code in here
-                for (int i = 0; i < numBrainOutputs; i++) {
-                    auto outputBit = Bit(cloneBrains[brainID]->readOutput(i));
+                //TODO: Do we need a threshold on outputs, or do we treat them as binary?
+                if(!useSendMsgBit || cloneBrains[brainID]->readOutput(sendMsgBitPos) == 1){
+                    if(!useSendMsgVetoBit || cloneBrains[brainID]->readOutput(sendMsgVetoBitPos)!=1){
+                        // Check if we need to send a message
+                        size_t targetID = 0;
+                        size_t bit = 1;
+                        // Convert output the address to send to
+                        for(size_t i = 0; i < addressSize; ++i){
+                            if(cloneBrains[brainID]->readOutput(i) == 1){
+                                targetID |= bit;
+                            }
+                            bit <<= 1;
+                        }
+                        // Recipient must be a valid node and our neighbor
+                        if(targetID < G.nodeCount && G.checkNeighbors(brainID, targetID)){
+                            NodeMessage msg(brainID, addressSize, colorSize);
+                            for(size_t i = 0; i < colorSize; i++){ // Fill contents
+                                msg.contents[i + addressSize] =  
+                                    cloneBrains[brainID]->readOutput(i + addressSize);
+                            }
+                            msgQueues[targetID].push(msg); // Send the message!
+                        }
+                    }
+                }
+                // Did the brain request a message from its queue (for its next input?)
+                deliverMsgVec[brainID] = false;
+                if(!useGetMsgBit || cloneBrains[brainID]->readOutput(getMsgBitPos) == 1){
+                    if(!useGetMsgVetoBit || cloneBrains[brainID]->readOutput(getMsgVetoBitPos) != 1){
+                        deliverMsgVec[brainID] = true;
+                    } 
                 }
             }
+            //TODO: Update colors in the graph from the nodes
+            //TODO: Do we use the message contents or something else?
+            //TODO: Sounds like we might need more bit flags? (e.g., "UpdateColor" bit??) 
 
         } //agent lifetime
 
         //end of life cleanup
         org->dataMap.append("score", score);
+        //TODO: Actually tie score in
         if (visualize)
             std::cout << "organism with ID " << org->ID << " scored " << score << std::endl;
         

@@ -17,7 +17,7 @@
 #include <thread>
 #include <vector>
 #include <cmath>
-
+#include <queue>
 
 class GraphColorWorld : public AbstractWorld {
 
@@ -33,8 +33,26 @@ public:
     static std::shared_ptr <ParameterLink<int>> useGetMessageVetoBit;
     static std::shared_ptr <ParameterLink<int>> maximumColors;
 
+    struct NodeMessage{
+        size_t senderID;
+        std::vector<double> senderAddr;
+        std::vector<double> contents;
+        NodeMessage(size_t id, size_t addrSize, size_t colSize){
+            senderID = id;
+            senderAddr.resize(addrSize, 0);
+            contents.resize(colSize, 0);
+            size_t bit = 1;
+            for(size_t i = 0; i < addrSize; ++i){
+                if(senderID & bit)
+                    senderAddr[i] = 1.0; 
+            }
+        }
+    };
+
     bool useNewMsgBit, useSendMsgBit, useSendMsgVetoBit, useGetMsgBit, useGetMsgVetoBit;
+    size_t newMsgBitPos, sendMsgBitPos, sendMsgVetoBitPos, getMsgBitPos, getMsgVetoBitPos;
     int maxColors = -1;
+    size_t addressSize, colorSize;
 
     int evaluationsPerGeneration;
     int agentLifetime;
@@ -95,9 +113,9 @@ public:
         size_t inputSize = 0;
         if(useNewMsgBit)
             ++inputSize;
-        inputSize += (size_t)ceil(log2(G.nodeCount));   // To address nodes in binary
-        inputSize += (size_t)ceil(log2(maxColors));     // Allow messages to pass a color
-                                                        //    Number of colors <= the number of nodes
+        inputSize += addressSize;                   // To address nodes in binary
+        inputSize += colorSize;                     // Allow messages to pass a color
+                                                    //    Number of colors <= the number of nodes
         //Calculate the number of output bits required
         size_t outputSize = 0;
         if(useSendMsgBit)
