@@ -18,6 +18,14 @@ all:
 	python3 pythonTools/mbuild.py -p $(cores); \
 	cp ./mabe ../mabe
 
+debug:
+	$(MAKE) cleanSource
+	$(MAKE) copySource
+	cp ./buildOptions.txt ./MABE/
+	cd MABE; \
+	python3 pythonTools/mbuild.py -do -p $(cores); \
+	cp ./mabe ../mabe
+
 .PHONY: clean
 clean: 
 	cd MABE; \
