@@ -243,7 +243,7 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
                             for(size_t i = 0; i < colorSize; i++){ // Fill contents
                                 // reads last stored color, may not be same as output buffer if "update color" was not executed
                                 std::cout << "CR" << std::endl;
-                                msg.contents[i + addressSize] = nodeColors[brainID][i];
+                                msg.contents[i] = nodeColors[brainID][i];
                                 std::cout << "PCR" << std::endl;
                             }
                             std::cout << "msg" << std::endl;
@@ -265,7 +265,6 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
             std::cout << "LOOP" << std::endl;
             
             //TODO: Do we use the message contents or something else?
-            //TODO: Sounds like we might need more bit flags? (e.g., "UpdateColor" bit??) 
 
         } //agent lifetime
 
