@@ -26,12 +26,14 @@ public:
     static std::shared_ptr <ParameterLink<int>> evaluationsPerGenerationPL;
     static std::shared_ptr <ParameterLink<int>> agentLifetimePL;
     static std::shared_ptr <ParameterLink<std::string>> graphFNamePL;
-    static std::shared_ptr <ParameterLink<int>> useNewMessageBit;
-    static std::shared_ptr <ParameterLink<int>> useSendMessageBit;
-    static std::shared_ptr <ParameterLink<int>> useSendMessageVetoBit;
-    static std::shared_ptr <ParameterLink<int>> useGetMessageBit;
-    static std::shared_ptr <ParameterLink<int>> useGetMessageVetoBit;
-    static std::shared_ptr <ParameterLink<int>> maximumColors;
+    static std::shared_ptr <ParameterLink<int>> useNewMessageBitPL;
+    static std::shared_ptr <ParameterLink<int>> useSendMessageBitPL;
+    static std::shared_ptr <ParameterLink<int>> useSendMessageVetoBitPL;
+    static std::shared_ptr <ParameterLink<int>> useGetMessageBitPL;
+    static std::shared_ptr <ParameterLink<int>> useGetMessageVetoBitPL;
+    static std::shared_ptr <ParameterLink<int>> maximumColorsPL;
+    static std::shared_ptr <ParameterLink<int>> useSetColorBitPL;
+    static std::shared_ptr <ParameterLink<int>> useSetColorVetoBitPL;
 
     struct NodeMessage{
         size_t senderID;
@@ -49,8 +51,8 @@ public:
         }
     };
 
-    bool useNewMsgBit, useSendMsgBit, useSendMsgVetoBit, useGetMsgBit, useGetMsgVetoBit;
-    size_t newMsgBitPos, sendMsgBitPos, sendMsgVetoBitPos, getMsgBitPos, getMsgVetoBitPos;
+    bool useNewMsgBit, useSendMsgBit, useSendMsgVetoBit, useGetMsgBit, useGetMsgVetoBit, useSetColorBit, useSetColorVetoBit;
+    size_t newMsgBitPos, sendMsgBitPos, sendMsgVetoBitPos, getMsgBitPos, getMsgVetoBitPos, setColorBitPos, setColorVetoBitPos;
     int maxColors = -1;
     size_t addressSize, colorSize;
 
@@ -107,6 +109,7 @@ public:
         //      will be in the next input
         // GV? - Get message veto bit (optional) - Set to 1 to ignore the get message bit
         //      (i.e., guarantee the next message will NOT be retrieved this round)
+        // TODO: add color here
 
 
         //Calculate the number of input bits required
@@ -126,8 +129,13 @@ public:
             ++outputSize;
         if(useGetMsgVetoBit)
             ++outputSize;
-        outputSize += (size_t)ceil(log2(G.nodeCount));  // To address nodes in binary
-        outputSize += (size_t)ceil(log2(maxColors));    // To allow for colors to be sent
+        if(useSetColorBit)
+            ++outputSize;
+        if(useSetColorVetoBit)
+            ++outputSize;
+
+        outputSize += addressSize;  // To address nodes in binary
+        outputSize += colorSize;    // To allow for colors to be sent
         std::cout << "Input bits: " << inputSize << std::endl;
         std::cout << "Output bits: " << outputSize << std::endl;
         return {{groupNamePL->get(PT), 
