@@ -65,7 +65,7 @@ public:
                 }
             }
         }
-        return score;
+        return score*100/(1 + edge_count * 2);
     }
 
     size_t get_num_colors(){

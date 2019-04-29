@@ -91,8 +91,9 @@ public:
             Random::getDouble(minEdgeChance, maxEdgeChance));
         graph_file << G.get_csv_string() << std::endl;
         int popSize = groups[groupNamePL->get(PT)]->population.size();
-        for (int i = 0; i < popSize; i++) {
-            evaluateSolo(groups[groupNamePL->get(PT)]->population[i], analyze, visualize, debug);
+        //for (int i = 0; i < popSize; i++) {
+        for (auto org:groups[groupNamePL->get(PT)]->population){
+            evaluateSolo(org, analyze, visualize, debug);
         }
     }
 
