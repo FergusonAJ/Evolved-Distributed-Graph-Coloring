@@ -53,14 +53,14 @@ GraphColorWorld::GraphColorWorld(std::shared_ptr <ParametersTable> PT_) : Abstra
 
         //TODO: Create a random graph here, instead of defaulting!
         std::cout << "No graph file specified! Defaulting! (Should we make this random?)" << std::endl;
-        G.loadFromFile("./Graphs/default.txt");
+        G.load_from_file("./Graphs/default.txt");
     } else {
         std::cout << "Using graph: " << graphFilename << "!" << std::endl;
-        G.loadFromFile(graphFilename);
+        G.load_from_file(graphFilename);
     }
-    std::cout << "Nodes: " << G.nodeCount << std::endl;
-    std::cout << "Edges: " << G.edgeCount << std::endl;
-    addressSize = ceil(log2(G.nodeCount));
+    std::cout << "Nodes: " << G.node_count << std::endl;
+    std::cout << "Edges: " << G.edge_count << std::endl;
+    addressSize = ceil(log2(G.node_count));
 
     //read in other params
     agentLifetime = agentLifetimePL->get(PT);
@@ -80,8 +80,9 @@ GraphColorWorld::GraphColorWorld(std::shared_ptr <ParametersTable> PT_) : Abstra
 
     maxColors = maximumColorsPL->get(PT);
     if(maxColors <= 0)
-        maxColors = G.nodeCount;
+        maxColors = G.node_count;
     colorSize = ceil(log2(maxColors));
+    G.reset_colors(colorSize);
     std::cout << "Maximum colors: " << maxColors << std::endl;
     
     // Set the bit positions based on what all we have configured
@@ -112,13 +113,12 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
 
     //clone the brain, one for each node
     //ALSO create a list of ints: used to visit each node exactly once in a random order each APL
-    std::vector<std::shared_ptr<AbstractBrain>> cloneBrains(G.nodeCount);
-    std::vector<size_t> nodeOrder(G.nodeCount); //TODO just shuffle the brain vector??
-    std::vector<std::queue<NodeMessage>> msgQueues(G.nodeCount);
-    std::vector<uint8_t> deliverMsgVec(G.nodeCount);
-    std::vector<std::vector<size_t>> nodeColors(G.nodeCount, std::vector<size_t>(colorSize));
+    std::vector<std::shared_ptr<AbstractBrain>> cloneBrains(G.node_count);
+    std::vector<size_t> nodeOrder(G.node_count); //TODO just shuffle the brain vector??
+    std::vector<std::queue<NodeMessage>> msgQueues(G.node_count);
+    std::vector<uint8_t> deliverMsgVec(G.node_count);
 
-    for (size_t i = 0; i < G.nodeCount; i++) {
+    for (size_t i = 0; i < G.node_count; i++) {
         cloneBrains[i] = originalBrain->makeCopy();
         nodeOrder[i] = i;
     }
@@ -132,7 +132,8 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
         sends = 0;
         color_changes = 0;
         reads = 0;
-
+        G.reset_colors(colorSize);
+    
         for (auto brain:cloneBrains) {
             brain->resetBrain();
         }
@@ -224,7 +225,7 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
                     if(!useSetColorVetoBit || Bit(cloneBrains[brainID]->readOutput(setColorVetoBitPos)) != 1){
                         //change color
                         for(size_t i = 0; i < colorSize; i++){ // Fill contents
-                            nodeColors[brainID][i] = Bit(cloneBrains[brainID]->readOutput(i + addressSize));
+                            G.set_color_by_index(brainID, i, Bit(cloneBrains[brainID]->readOutput(i + addressSize)));
                         }
                         score += 1/(t+1); //diminishing reward for changing color (helps agents discover this ability)
                         color_changes++;
@@ -245,11 +246,11 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
                             bit <<= 1;
                         }
                         // Recipient must be a valid node and our neighbor
-                        if(targetID < G.nodeCount && G.checkNeighbors(brainID, targetID)){
+                        if(targetID < G.node_count && G.check_neighbors(brainID, targetID)){
                             NodeMessage msg(brainID, addressSize, colorSize);
                             for(size_t i = 0; i < colorSize; i++){ // Fill contents
                                 // reads last stored color, may not be same as output buffer if "update color" was not executed
-                                msg.contents[i] = nodeColors[brainID][i];
+                                msg.contents[i] = G.get_color_at_index(brainID, i);
                             }
                             msgQueues[targetID].push(msg); // Send the message!
                         }
@@ -274,6 +275,8 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
         
 
         auto xXx = G.get_graph_score();
+        if(visualize)
+            G.print_colors();
         org->dataMap.append("graphScore", xXx);
         score += xXx*xXx;
 
