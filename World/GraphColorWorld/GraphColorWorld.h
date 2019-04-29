@@ -10,14 +10,17 @@
 
 #pragma once
 
-#include "../AbstractWorld.h"
-#include "./Graph.h"
-
 #include <cstdlib>
 #include <thread>
 #include <vector>
 #include <cmath>
 #include <queue>
+#include <fstream>
+// MABE includes
+#include "../AbstractWorld.h"
+// Local includes
+#include "./Graph.h"
+
 
 class GraphColorWorld : public AbstractWorld {
 
@@ -25,7 +28,6 @@ public:
     static std::shared_ptr <ParameterLink<int>> modePL;
     static std::shared_ptr <ParameterLink<int>> evaluationsPerGenerationPL;
     static std::shared_ptr <ParameterLink<int>> agentLifetimePL;
-    static std::shared_ptr <ParameterLink<std::string>> graphFNamePL;
     static std::shared_ptr <ParameterLink<int>> useNewMessageBitPL;
     static std::shared_ptr <ParameterLink<int>> useSendMessageBitPL;
     static std::shared_ptr <ParameterLink<int>> useSendMessageVetoBitPL;
@@ -34,6 +36,11 @@ public:
     static std::shared_ptr <ParameterLink<int>> maximumColorsPL;
     static std::shared_ptr <ParameterLink<int>> useSetColorBitPL;
     static std::shared_ptr <ParameterLink<int>> useSetColorVetoBitPL;
+    static std::shared_ptr <ParameterLink<int>> minGraphNodesPL;
+    static std::shared_ptr <ParameterLink<int>> maxGraphNodesPL;
+    static std::shared_ptr <ParameterLink<double>> minEdgeChancePL;
+    static std::shared_ptr <ParameterLink<double>> maxEdgeChancePL;
+    static std::shared_ptr <ParameterLink<std::string>> graphOutputDirPL;;
 
     struct NodeMessage{
         size_t senderID;
@@ -54,6 +61,8 @@ public:
     bool useNewMsgBit, useSendMsgBit, useSendMsgVetoBit, useGetMsgBit, useGetMsgVetoBit, useSetColorBit, useSetColorVetoBit;
     size_t newMsgBitPos, sendMsgBitPos, sendMsgVetoBitPos, getMsgBitPos, getMsgVetoBitPos, setColorBitPos, setColorVetoBitPos;
     int maxColors = -1;
+    int minGraphNodes, maxGraphNodes;
+    double minEdgeChance, maxEdgeChance;
     size_t addressSize, colorSize;
 
     int evaluationsPerGeneration;
@@ -64,14 +73,23 @@ public:
 
 
     Graph G;
+    std::string graphOutputDir;
+    std::ofstream graph_file;
 
     GraphColorWorld(std::shared_ptr <ParametersTable> PT_ = nullptr);
 
-    virtual ~GraphColorWorld() = default;
+    virtual ~GraphColorWorld(){
+        graph_file.close();
+    };
 
     void evaluateSolo(std::shared_ptr <Organism> org, int analyze, int visualize, int debug);
 
     virtual void evaluate(std::map <std::string, std::shared_ptr<Group>> &groups, int analyze, int visualize, int debug) {
+        // Randomize the graph
+        G.randomize(
+            Random::getInt(minGraphNodes, maxGraphNodes), 
+            Random::getDouble(minEdgeChance, maxEdgeChance));
+        graph_file << G.get_csv_string() << std::endl;
         int popSize = groups[groupNamePL->get(PT)]->population.size();
         for (int i = 0; i < popSize; i++) {
             evaluateSolo(groups[groupNamePL->get(PT)]->population[i], analyze, visualize, debug);
@@ -142,6 +160,37 @@ public:
             {"B:" + brainNamePL->get(PT) + "," + std::to_string(inputSize) + 
              "," + std::to_string(outputSize) }
             }};
+    }
+    
+    void verifyGraphGenVars(){
+        if(minGraphNodes < 1){
+            std::cout << "minGraphNodes must be >= 1, was passed " << minGraphNodes << std::endl;
+            exit(-1);
+        }
+        if(maxGraphNodes < 1){
+            std::cout << "maxGraphNodes must be >= 1, was passed " << maxGraphNodes << std::endl;
+            exit(-1);
+        }
+        if(maxGraphNodes < minGraphNodes){
+            std::cout << "maxGraphNodes must be >= minGraphNodes, given "
+                      << maxGraphNodes << " vs " << minGraphNodes << std::endl;
+            exit(-1);
+        }
+        if(minEdgeChance < 0 || minEdgeChance > 1){
+            std::cout << "minEdgeChance must be in range [0,1], was passed " 
+                      << minEdgeChance << std::endl;
+            exit(-1);
+        }
+        if(maxEdgeChance < 0 || maxEdgeChance > 1){
+            std::cout << "maxEdgeChance must be in range [0,1], was passed " 
+                      << maxEdgeChance << std::endl;
+            exit(-1);
+        }
+        if(maxEdgeChance < minEdgeChance){
+            std::cout << "maxEdgeChance >= minEdgeChance, given " 
+                      << maxEdgeChance << " vs " << minEdgeChance << std::endl;
+            exit(-1);
+        }
     }
 };
 

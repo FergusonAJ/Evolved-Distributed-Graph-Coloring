@@ -8,6 +8,7 @@
 //     to view the full license, visit:
 //         github.com/Hintzelab/MABE/wiki/License
 
+// Local includes
 #include "GraphColorWorld.h"
 
 // Used to shuffle a vector using the same random seed as MABE
@@ -23,8 +24,6 @@ std::shared_ptr <ParameterLink<int>> GraphColorWorld::agentLifetimePL = Paramete
 std::shared_ptr <ParameterLink<std::string>> GraphColorWorld::groupNamePL = Parameters::register_parameter("WORLD_GRAPH_COLOR_NAMES-groupNameSpace", (std::string) "root::", "namespace of group to be evaluated");
 std::shared_ptr <ParameterLink<std::string>> GraphColorWorld::brainNamePL = Parameters::register_parameter("WORLD_GRAPH_COLOR_NAMES-brainNameSpace", (std::string) "root::", "namespace for parameters used to define brain");
 
-std::shared_ptr <ParameterLink<std::string>> GraphColorWorld::graphFNamePL = Parameters::register_parameter("WORLD_GRAPH_COLOR-graphFileName", (std::string) "NONE", "The filename of the graph we will test on. NONE for random");
-
 std::shared_ptr <ParameterLink<int>> GraphColorWorld::useNewMessageBitPL = Parameters::register_parameter("WORLD_GRAPH_COLOR-useNewMessageBit",  1, "Do we include a bit in the input telling a brain it has a new message? (1 for yes, 0 for no)");
 std::shared_ptr <ParameterLink<int>> GraphColorWorld::useSendMessageBitPL = Parameters::register_parameter("WORLD_GRAPH_COLOR-useSendMessageBit",  1, "Do we include an output bit indicating a message should be sent? (1 for yes, 0 for no)");
 std::shared_ptr <ParameterLink<int>> GraphColorWorld::useSendMessageVetoBitPL = Parameters::register_parameter("WORLD_GRAPH_COLOR-useSendMessageVetoBit",  1, "Do we include an output bit that allows vetoing of message sending? (1 for yes, 0 for no) (Note: if useSendMessageBit is 0, this will be set to 0 internally.");
@@ -34,6 +33,14 @@ std::shared_ptr <ParameterLink<int>> GraphColorWorld::useSetColorBitPL = Paramet
 std::shared_ptr <ParameterLink<int>> GraphColorWorld::useSetColorVetoBitPL = Parameters::register_parameter("WORLD_GRAPH_COLOR-useSetColorVetoBit",  1, "Do we include a bit taht allows vetoing the action of changing the color? (1 for yes, 0 for no) (Note: if useGetMessage but is 0, this will be set to 0 internally.");
 
 std::shared_ptr <ParameterLink<int>> GraphColorWorld::maximumColorsPL = Parameters::register_parameter("WORLD_GRAPH_COLOR-maximumColors",  -1, "Maximum number of colors to be considered a valid graph coloring. (-1 to match the number of nodes)");
+
+std::shared_ptr <ParameterLink<int>> GraphColorWorld::minGraphNodesPL = Parameters::register_parameter("WORLD_GRAPH_COLOR-minGraphNodes",  1, "Minimum number of nodes in each generated graph (inclusive)(Will error if <= 0)");
+std::shared_ptr <ParameterLink<int>> GraphColorWorld::maxGraphNodesPL = Parameters::register_parameter("WORLD_GRAPH_COLOR-maxGraphNodes",  20, "Maximum number of nodes in each generated graph (inclusive) (Will error if <= 0 or <= minGraphNodes)");
+
+std::shared_ptr <ParameterLink<double>> GraphColorWorld::minEdgeChancePL = Parameters::register_parameter("WORLD_GRAPH_COLOR-minEdgeChance",  0.0, "Minimum chance an edge will be placed between any two nodes in generated graphs (i.e., 0 = no edges, 1 = fully connected, 0.5 roughly half of all pairs have an edge)(Will error if not 0 <= p <= 1)");
+std::shared_ptr <ParameterLink<double>> GraphColorWorld::maxEdgeChancePL = Parameters::register_parameter("WORLD_GRAPH_COLOR-maxEdgeChance",  1.0, "Maximum chance an edge will be placed between any two nodes in generated graphs (see minEdgeChance)(Will error if not 0 <= p <= 1 or p < minEdgeChance)");
+
+std::shared_ptr <ParameterLink<std::string>> GraphColorWorld::graphOutputDirPL = Parameters::register_parameter("WORLD_GRAPH_COLOR-graphOutputDir",  (std::string)"./", "Directory where graph.csv will be saved.");
 
 GraphColorWorld::GraphColorWorld(std::shared_ptr <ParametersTable> PT_) : AbstractWorld(PT_) {
     // columns to be added to ave file (configure data collection)
@@ -48,20 +55,8 @@ GraphColorWorld::GraphColorWorld(std::shared_ptr <ParametersTable> PT_) : Abstra
     popFileColumns.push_back("Read_msg");
     popFileColumns.push_back("Computation_rounds");
 
-    //read in graph configuration
-    std::string graphFilename = graphFNamePL->get(PT);
-    if (graphFilename == "NONE") {
-
-        //TODO: Create a random graph here, instead of defaulting!
-        std::cout << "No graph file specified! Defaulting! (Should we make this random?)" << std::endl;
-        G.load_from_file("./Graphs/default.txt");
-    } else {
-        std::cout << "Using graph: " << graphFilename << "!" << std::endl;
-        G.load_from_file(graphFilename);
-    }
-    std::cout << "Nodes: " << G.node_count << std::endl;
-    std::cout << "Edges: " << G.edge_count << std::endl;
-    addressSize = ceil(log2(G.node_count));
+    // Set up graph file
+    
 
     //read in other params
     agentLifetime = agentLifetimePL->get(PT);
@@ -79,9 +74,24 @@ GraphColorWorld::GraphColorWorld(std::shared_ptr <ParametersTable> PT_) : Abstra
     useSetColorBit = useSetColorBitPL->get(PT) > 0;
     useSetColorVetoBit = (useSetColorBit && useSetColorVetoBitPL > 0);
 
+   
+    minGraphNodes = minGraphNodesPL->get(PT);
+    maxGraphNodes = maxGraphNodesPL->get(PT);
+    minEdgeChance = minEdgeChancePL->get(PT);
+    maxEdgeChance = maxEdgeChancePL->get(PT);
+    verifyGraphGenVars();    
+    
+    graphOutputDir = graphOutputDirPL->get(PT);
+    graph_file.open(graphOutputDir + "/graph.csv", std::ios::out);
+    std::cout << "Saving each graph to " << graphOutputDir << "/graph.csv" << std::endl;
+    graph_file << "node_count,edge_count,adj_vec" << std::endl;
+ 
+    addressSize = ceil(log2(maxGraphNodes));
+    
     maxColors = maximumColorsPL->get(PT);
     if(maxColors <= 0)
-        maxColors = G.node_count;
+        maxColors = maxGraphNodes;
+
     colorSize = ceil(log2(maxColors));
     G.reset_colors(colorSize);
     std::cout << "Maximum colors: " << maxColors << std::endl;
