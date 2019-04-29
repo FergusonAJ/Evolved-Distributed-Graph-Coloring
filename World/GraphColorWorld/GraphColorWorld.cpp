@@ -19,7 +19,7 @@ std::shared_ptr <ParameterLink<int>> GraphColorWorld::modePL = Parameters::regis
 std::shared_ptr <ParameterLink<int>> GraphColorWorld::evaluationsPerGenerationPL = Parameters::register_parameter("WORLD_GRAPH_COLOR-evaluationsPerGeneration", 1, "Number of times to test each Genome per "
                                                                                                                                                                    "generation (useful with non-deterministic "
                                                                                                                                                                    "brains)");
-std::shared_ptr <ParameterLink<int>> GraphColorWorld::agentLifetimePL = Parameters::register_parameter("WORLD_GRAPH_COLOR-agentLifetime", 1, "Number of time units the agents experience in a lifetime");
+std::shared_ptr <ParameterLink<int>> GraphColorWorld::agentLifetimePL = Parameters::register_parameter("WORLD_GRAPH_COLOR-agentLifetime", 1000, "Number of time units the agents experience in a lifetime");
 std::shared_ptr <ParameterLink<std::string>> GraphColorWorld::groupNamePL = Parameters::register_parameter("WORLD_GRAPH_COLOR_NAMES-groupNameSpace", (std::string) "root::", "namespace of group to be evaluated");
 std::shared_ptr <ParameterLink<std::string>> GraphColorWorld::brainNamePL = Parameters::register_parameter("WORLD_GRAPH_COLOR_NAMES-brainNameSpace", (std::string) "root::", "namespace for parameters used to define brain");
 
@@ -46,6 +46,7 @@ GraphColorWorld::GraphColorWorld(std::shared_ptr <ParametersTable> PT_) : Abstra
     popFileColumns.push_back("Send_msg");
     popFileColumns.push_back("Change_Color");
     popFileColumns.push_back("Read_msg");
+    popFileColumns.push_back("Computation_rounds");
 
     //read in graph configuration
     std::string graphFilename = graphFNamePL->get(PT);
@@ -139,7 +140,8 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
         }
 
         //lifetime loop (action-perception loop)
-        for (size_t t = 0; t < agentLifetime; t++) {
+        size_t t;
+        for (t = 0; t < agentLifetime; t++) {
             
             // give agents their inputs
 
@@ -227,7 +229,7 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
                         for(size_t i = 0; i < colorSize; i++){ // Fill contents
                             G.set_color_by_index(brainID, i, Bit(cloneBrains[brainID]->readOutput(i + addressSize)));
                         }
-                        score += 1/(t+1); //diminishing reward for changing color (helps agents discover this ability)
+                        score += 1/((t+1)*(t+1)); //diminishing reward for changing color (helps agents discover this ability)
                         color_changes++;
                     }
                 }
@@ -254,7 +256,7 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
                             }
                             msgQueues[targetID].push(msg); // Send the message!
                         }
-                        score += 1/(t+1); //diminishing reward for sending a message (helps agents discover this ability)
+                        score += 1/((t+1)*(t+1)); //diminishing reward for sending a message (helps agents discover this ability)
                         sends++;
                     }
                 }
@@ -263,7 +265,7 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
                 if(!useGetMsgBit || Bit(cloneBrains[brainID]->readOutput(getMsgBitPos)) == 1){
                     if(!useGetMsgVetoBit || Bit(cloneBrains[brainID]->readOutput(getMsgVetoBitPos)) != 1){
                         deliverMsgVec[brainID] = true;
-                        score += 1/(t+1); //diminishing reward for delivering message (helps agents discover this ability)
+                        score += 1/((t+1)*(t+1)); //diminishing reward for delivering message (helps agents discover this ability)
                         reads++;
                     } 
                 }
@@ -271,6 +273,10 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
             
             //TODO: Do we use the message contents or something else?
 
+            if (G.check_graph_coloring()){ //reward for stopping earlier
+                score += agentLifetime - t;
+                break;
+            }
         } //agent lifetime
         
 
@@ -286,6 +292,7 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
         org->dataMap.append("Send_msg", sends);
         org->dataMap.append("Change_Color", color_changes);
         org->dataMap.append("Read_msg", reads);
+        org->dataMap.append("Computation_rounds", int(t));
 
         //TODO: Actually tie score in
         if (visualize)
