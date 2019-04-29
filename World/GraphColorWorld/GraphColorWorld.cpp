@@ -130,7 +130,7 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
     std::vector<uint8_t> deliverMsgVec(G.node_count);
 
     for (size_t i = 0; i < G.node_count; i++) {
-        cloneBrains[i] = originalBrain->makeCopy();
+        cloneBrains[i] = originalBrain->makeCopy(originalBrain->PT);
         nodeOrder[i] = i;
     }
 
@@ -151,6 +151,7 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
 
         //lifetime loop (action-perception loop)
         size_t t;
+        size_t solve_count = 0; //used to detect early termination
         for (t = 0; t < agentLifetime; t++) {
             
             // give agents their inputs
@@ -284,8 +285,14 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
             //TODO: Do we use the message contents or something else?
 
             if (G.check_graph_coloring()){ //reward for stopping earlier
-                score += agentLifetime - t;
-                break;
+                solve_count ++; //count up towards threshold
+                if (solve_count == 20){ // TODO: 20 is chosen arbetrarily, make this a parameter
+                    score += agentLifetime - t;
+                    break;
+                }
+            }
+            else{
+                solve_count = 0; //reset on failure
             }
         } //agent lifetime
         
@@ -294,7 +301,7 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
         if(visualize)
             G.print_colors();
         org->dataMap.append("graphScore", xXx);
-        score += xXx*xXx;
+        score += xXx;
 
         //end of life cleanup
         org->dataMap.append("score", score);
