@@ -42,6 +42,10 @@ GraphColorWorld::GraphColorWorld(std::shared_ptr <ParametersTable> PT_) : Abstra
     popFileColumns.push_back("score_VAR"); // specifies to also record the
     // variance (performed automatically
     // because _VAR)
+    popFileColumns.push_back("graphScore");
+    popFileColumns.push_back("Send_msg");
+    popFileColumns.push_back("Change_Color");
+    popFileColumns.push_back("Read_msg");
 
     //read in graph configuration
     std::string graphFilename = graphFNamePL->get(PT);
@@ -120,10 +124,14 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
     }
 
     double score = 0.0;
+    int sends, color_changes, reads;
 
     for (size_t eval = 0; eval < evaluationsPerGeneration; eval++) {
         //pre-lifetime setup
         score = 0.0;
+        sends = 0;
+        color_changes = 0;
+        reads = 0;
 
         for (auto brain:cloneBrains) {
             brain->resetBrain();
@@ -137,7 +145,6 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
             //---------------------------------------------------
             //| message sender addr | message sender color | M? |
             //---------------------------------------------------
-            std::cout << "Set Inputs" << std::endl;
 
             for (auto brainID:nodeOrder) {
 
@@ -210,7 +217,6 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
             //| Target Address | Color | S? | SV? | G? | GV? | C? | CV? |
             //-------------------------------------------------------------
 
-            std::cout << "Read Outputs" << std::endl;
             for (auto brainID:nodeOrder) {
 
                 //Update color of the node
@@ -220,6 +226,8 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
                         for(size_t i = 0; i < colorSize; i++){ // Fill contents
                             nodeColors[brainID][i] = Bit(cloneBrains[brainID]->readOutput(i + addressSize));
                         }
+                        score += 1/(t+1); //diminishing reward for changing color (helps agents discover this ability)
+                        color_changes++;
                     }
                 }
 
@@ -231,7 +239,6 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
                         size_t bit = 1;
                         // Convert output the address to send to
                         for(size_t i = 0; i < addressSize; ++i){
-                            std::cout << "F" << std::endl;
                             if(Bit(cloneBrains[brainID]->readOutput(i)) == 1){
                                 targetID |= bit;
                             }
@@ -242,34 +249,41 @@ void GraphColorWorld::evaluateSolo(std::shared_ptr <Organism> org, int analyze, 
                             NodeMessage msg(brainID, addressSize, colorSize);
                             for(size_t i = 0; i < colorSize; i++){ // Fill contents
                                 // reads last stored color, may not be same as output buffer if "update color" was not executed
-                                std::cout << "CR" << std::endl;
                                 msg.contents[i] = nodeColors[brainID][i];
-                                std::cout << "PCR" << std::endl;
                             }
-                            std::cout << "msg" << std::endl;
                             msgQueues[targetID].push(msg); // Send the message!
-                            std::cout << "Pmsg" << std::endl;
                         }
+                        score += 1/(t+1); //diminishing reward for sending a message (helps agents discover this ability)
+                        sends++;
                     }
                 }
                 // Did the brain request a message from its queue (for its next input?)
                 deliverMsgVec[brainID] = false;
-                std::cout << "G" << std::endl;
                 if(!useGetMsgBit || Bit(cloneBrains[brainID]->readOutput(getMsgBitPos)) == 1){
-                    std::cout << "H" << std::endl;
                     if(!useGetMsgVetoBit || Bit(cloneBrains[brainID]->readOutput(getMsgVetoBitPos)) != 1){
                         deliverMsgVec[brainID] = true;
+                        score += 1/(t+1); //diminishing reward for delivering message (helps agents discover this ability)
+                        reads++;
                     } 
                 }
             }
-            std::cout << "LOOP" << std::endl;
             
             //TODO: Do we use the message contents or something else?
 
         } //agent lifetime
+        
+
+        auto xXx = G.get_graph_score();
+        org->dataMap.append("graphScore", xXx);
+        score += xXx*xXx;
 
         //end of life cleanup
         org->dataMap.append("score", score);
+
+        org->dataMap.append("Send_msg", sends);
+        org->dataMap.append("Change_Color", color_changes);
+        org->dataMap.append("Read_msg", reads);
+
         //TODO: Actually tie score in
         if (visualize)
             std::cout << "organism with ID " << org->ID << " scored " << score << std::endl;

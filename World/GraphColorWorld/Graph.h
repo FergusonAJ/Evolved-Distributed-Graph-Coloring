@@ -27,6 +27,19 @@ public:
         }
         return true;
     }
+
+    double get_graph_score(){
+        double score = edgeCount * 2;
+        for(size_t n = 0; n < nodeCount; ++n){
+            for(size_t m : adjVec[n]){
+                if(nodes[n].color == nodes[m].color){
+                    score -= 1.0;
+                }
+            }
+        }
+        return score;
+    }
+
     
     size_t getNumColors(){
         std::set<size_t> colorSet;
