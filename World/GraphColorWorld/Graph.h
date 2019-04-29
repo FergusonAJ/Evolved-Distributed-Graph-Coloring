@@ -15,7 +15,7 @@ class Graph{
 public: 
     std::vector<Node> nodes;
     std::vector<std::set<size_t>> adj_vec;
-    size_t node_count, edge_count;
+    size_t node_count, edge_count, max_degree;
     
     Graph(){
         node_count = 0;
@@ -43,12 +43,13 @@ public:
                 }
             }
         } 
+        max_degree = get_max_degree();
     }
 
     bool check_graph_coloring(){
         for(size_t n = 0; n < node_count; ++n){
             for(size_t m : adj_vec[n]){
-                if(nodes[n].color == nodes[m].color){
+                if(get_color(n) == get_color(m)){
                     return false;
                 }
             }
@@ -60,7 +61,7 @@ public:
         double score = edge_count * 2;
         for(size_t n = 0; n < node_count; ++n){
             for(size_t m : adj_vec[n]){
-                if(nodes[n].color == nodes[m].color){
+                if(get_color(n) == get_color(m)){
                     score -= 1.0;
                 }
             }
@@ -69,11 +70,20 @@ public:
     }
 
     size_t get_num_colors(){
-        std::set<std::vector<size_t>> color_set;
-        for(Node n : nodes)
-            color_set.insert(n.color);
+        std::set<size_t> color_set;
+        for(size_t n = 0; n < nodes.size(); ++n)
+            color_set.insert(get_color(n));
         return color_set.size();
     } 
+
+    size_t get_max_degree(){
+        size_t cur_max = 0;
+        for(size_t n = 0; n < nodes.size(); ++n){
+            if(adj_vec[n].size() > cur_max)
+                cur_max = adj_vec[n].size();
+        }
+        return cur_max;
+    }
 
     void load_from_file(std::string filename){
         std::ifstream fp;
@@ -133,12 +143,14 @@ public:
         return nodes[node_id].color[idx];
     }
     
+    size_t get_color(size_t n){
+        return nodes[n].get_uint_color() % (max_degree + 1);
+    }
+
     void print_colors(){
         for(size_t n = 0; n < nodes.size(); ++n){
             std::cout << n << ":  ";
-            for(size_t i = 0; i < nodes[n].color.size(); ++i){
-                std::cout << nodes[n].color[i] << " ";
-            }
+            std::cout << get_color(n) << " ";
             std::cout << std::endl;
         }
     }
